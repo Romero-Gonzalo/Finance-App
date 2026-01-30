@@ -27,45 +27,41 @@ function formatARS(value: number) {
   });
 }
 
-// Paleta elegante (sin carnaval)
 const COLORS = [
-  "#3b82f6", // azul
-  "#16a34a", // verde
-  "#f59e0b", // naranja
-  "#ef4444", // rojo
-  "#8b5cf6", // violeta
-  "#06b6d4", // cyan
-  "#e11d48", // rosa fuerte
-  "#64748b", // gris
+  "#3b82f6",
+  "#16a34a",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#e11d48",
+  "#64748b",
 ];
 
-export default function MonthlyChart({
-  monthTxs,
-}: {
-  monthTxs: Tx[];
-}) {
-  const data = useMemo(() => {
+export default function MonthlyChart({ monthTxs }: { monthTxs: Tx[] }) {
+  const { data, totalExpense } = useMemo(() => {
     const byCategory = new Map<string, number>();
 
     for (const tx of monthTxs) {
       if (tx.type !== "expense") continue;
-
       const prev = byCategory.get(tx.category) ?? 0;
       byCategory.set(tx.category, prev + (tx.amountCents ?? 0));
     }
 
-    return Array.from(byCategory.entries()).map(([category, cents]) => ({
+    const data = Array.from(byCategory.entries()).map(([category, cents]) => ({
       name: category,
       value: centsToARS(cents),
     }));
+
+    const totalExpense = data.reduce((acc, d) => acc + d.value, 0);
+
+    return { data, totalExpense };
   }, [monthTxs]);
 
   if (!data.length) {
     return (
       <div className="border p-4 rounded-xl">
-        <p className="text-sm opacity-70">
-          No hay gastos en este mes para mostrar.
-        </p>
+        <p className="text-sm opacity-70">No hay gastos en este mes para mostrar.</p>
       </div>
     );
   }
@@ -74,42 +70,54 @@ export default function MonthlyChart({
     <div className="border p-4 rounded-xl space-y-2">
       <div className="flex items-baseline justify-between">
         <h3 className="font-semibold">Distribución de gastos</h3>
-        <p className="text-xs opacity-70">
-          ¿En qué se fue la plata?
-        </p>
+        <p className="text-xs opacity-70">¿En qué se fue la plata?</p>
       </div>
 
-      <div style={{ width: "100%", height: 320 }}>
+      <div style={{ width: "100%", height: 340 }}>
         <ResponsiveContainer>
           <PieChart>
             <Pie
               data={data}
               dataKey="value"
               nameKey="name"
-              outerRadius={110}
-              label={({ name }) => name}
+              outerRadius={120}
+              innerRadius={72}
             >
-              {data.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={COLORS[index % COLORS.length]}
-                />
+              {data.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
 
-            <Tooltip
-              formatter={(value: any) =>
-                formatARS(Number(value))
-              }
-            />
+            {/* Texto en el centro */}
+            <text
+              x="50%"
+              y="48%"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              style={{ fontSize: "16px", fontWeight: 700 }}
+            >
+              {formatARS(totalExpense)}
+            </text>
+            <text
+              x="50%"
+              y="57%"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              style={{ fontSize: "12px", opacity: 0.75 }}
+            >
+              Gastos del mes
+            </text>
 
+            <Tooltip
+              formatter={(value: any) => formatARS(Number(value))}
+            />
             <Legend />
           </PieChart>
         </ResponsiveContainer>
       </div>
 
       <p className="text-xs opacity-60">
-        Si una porción domina… ya sabés dónde atacar el presupuesto.
+        Si una porción domina… ahí está el “jefe final” de tu presupuesto 😅
       </p>
     </div>
   );
