@@ -44,3 +44,10 @@ export async function listTransactions(uid: string) {
     ...doc.data(),
   }));
 }
+
+import { deleteDoc, doc } from "firebase/firestore";
+
+export async function deleteTransaction(uid: string, txId: string) {
+  const ref = doc(firebaseDb, "users", uid, "tx", txId);
+  await deleteDoc(ref);
+}

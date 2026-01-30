@@ -6,12 +6,17 @@ import { signOut } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { useMe } from "@/lib/auth/useMe";
 import TxForm from "@/components/TxForm";
-import { listTransactions } from "@/lib/tx/client";
+import { listTransactions, deleteTransaction } from "@/lib/tx/client";
+import MonthlyChart from "@/components/MonthlyChart";
+
 
 export default function AppHome() {
   const { me, loading } = useMe();
   const router = useRouter();
   const [txs, setTxs] = useState<any[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
 
   useEffect(() => {
     if (!loading && !me) router.replace("/login");
@@ -27,11 +32,10 @@ export default function AppHome() {
     if (me) load();
   }, [me]);
 
-  const { monthTxs, income, expense, total, currentMonthLabel } = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
-
-    const monthTxs = txs.filter((tx) => tx.dayKey?.startsWith(currentMonth));
+  const { monthTxs, income, expense, total, monthLabel } = useMemo(() => {
+    const monthTxs = txs.filter((tx) =>
+      tx.dayKey?.startsWith(selectedMonth)
+    );
 
     const income = monthTxs
       .filter((tx) => tx.type === "income")
@@ -43,13 +47,16 @@ export default function AppHome() {
 
     const total = income - expense;
 
-    const currentMonthLabel = now.toLocaleString("es-AR", {
+    const [year, month] = selectedMonth.split("-");
+    const date = new Date(Number(year), Number(month) - 1);
+
+    const monthLabel = date.toLocaleString("es-AR", {
       month: "long",
       year: "numeric",
     });
 
-    return { monthTxs, income, expense, total, currentMonthLabel };
-  }, [txs]);
+    return { monthTxs, income, expense, total, monthLabel };
+  }, [txs, selectedMonth]);
 
   if (loading) return <main className="p-6">Cargando...</main>;
   if (!me) return null;
@@ -73,8 +80,21 @@ export default function AppHome() {
         </button>
       </div>
 
-      <div className="border p-4 rounded-xl space-y-1">
-        <p className="text-sm">Resumen del mes ({currentMonthLabel})</p>
+      <div className="border p-4 rounded-xl space-y-3">
+        <div className="flex justify-between items-center">
+          <p className="text-sm font-medium">
+            Resumen de {monthLabel}
+          </p>
+
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          />
+        </div>
+<MonthlyChart monthTxs={monthTxs} selectedMonth={selectedMonth} />
+
         <p className="text-sm">Ingresos: ${(income / 100).toFixed(2)}</p>
         <p className="text-sm">Gastos: ${(expense / 100).toFixed(2)}</p>
         <h2 className="text-2xl font-bold">
@@ -85,24 +105,52 @@ export default function AppHome() {
       <TxForm uid={me.uid} onCreated={load} />
 
       <div className="space-y-2">
-        <h3 className="font-semibold">Movimientos del mes</h3>
+        <h3 className="font-semibold">
+          Movimientos de {monthLabel}
+        </h3>
 
         {monthTxs.length === 0 ? (
           <p className="text-sm opacity-70">
-            Todavía no cargaste movimientos este mes. Meté el primero y arrancamos el imperio 💸
+            No hay movimientos en este mes.
           </p>
         ) : (
           monthTxs.map((tx) => (
-            <div key={tx.id} className="border p-3 rounded-xl text-sm">
-              <div className="flex justify-between">
-                <span>{tx.category}</span>
-                <span>
-                  {tx.type === "income" ? "+" : "-"}$
-                  {(tx.amountCents / 100).toFixed(2)}
-                </span>
+            <div
+              key={tx.id}
+              className="border p-3 rounded-xl text-sm flex justify-between items-center"
+            >
+              <div>
+                <div className="flex justify-between gap-4">
+                  <span>{tx.category}</span>
+                  <span
+                    className={
+                      tx.type === "income"
+                        ? "text-green-600 font-medium"
+                        : "text-red-600 font-medium"
+                    }
+                  >
+                    {tx.type === "income" ? "+" : "-"}$
+                    {(tx.amountCents / 100).toFixed(2)}
+                  </span>
+                </div>
+
+                {tx.note && (
+                  <p className="text-xs opacity-70">{tx.note}</p>
+                )}
+
+                <p className="text-xs opacity-50">{tx.dayKey}</p>
               </div>
-              {tx.note && <p className="text-xs opacity-70">{tx.note}</p>}
-              <p className="text-xs opacity-50">{tx.dayKey}</p>
+
+              <button
+                onClick={async () => {
+                  if (!confirm("¿Eliminar movimiento?")) return;
+                  await deleteTransaction(me.uid, tx.id);
+                  load();
+                }}
+                className="text-red-500 text-xs hover:underline"
+              >
+                Eliminar
+              </button>
             </div>
           ))
         )}
