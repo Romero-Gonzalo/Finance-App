@@ -93,7 +93,7 @@ export default function AppHome() {
             className="border rounded px-2 py-1 text-sm"
           />
         </div>
-<MonthlyChart monthTxs={monthTxs} selectedMonth={selectedMonth} />
+<MonthlyChart monthTxs={monthTxs} />
 
         <p className="text-sm">Ingresos: ${(income / 100).toFixed(2)}</p>
         <p className="text-sm">Gastos: ${(expense / 100).toFixed(2)}</p>
